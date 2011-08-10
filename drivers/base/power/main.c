@@ -1027,6 +1027,7 @@ int dpm_suspend(pm_message_t state)
 		if (error) {
 			pm_dev_err(dev, state, "", error);
 			dpm_save_failed_dev(dev_name(dev));
+			dpm_save_failed_dev(dev_name(dev));
 			put_device(dev);
 			break;
 		}
