@@ -132,12 +132,9 @@ static int try_to_freeze_tasks(bool sig_only)
 
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
-			task_lock(p);
-			if (freezing(p) && !freezer_should_skip(p) &&
-				elapsed_msecs > 1000)
+			if (!wakeup && freezing(p) && !freezer_should_skip(p))
 				sched_show_task(p);
 			cancel_freezing(p);
-			task_unlock(p);
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
 	} else {
