@@ -361,9 +361,9 @@ struct cpu_vfs_cap_data {
 
 /* Allow preventing system suspends */
 
-#define CAP_BLOCK_SUSPEND    36
+#define CAP_EPOLLWAKEUP      36
 
-#define CAP_LAST_CAP         CAP_BLOCK_SUSPEND
+#define CAP_LAST_CAP         CAP_EPOLLWAKEUP
 
 #define cap_valid(x) ((x) >= 0 && (x) <= CAP_LAST_CAP)
 
