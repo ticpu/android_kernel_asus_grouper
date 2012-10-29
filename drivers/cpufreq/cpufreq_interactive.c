@@ -1353,6 +1353,8 @@ static int __init cpufreq_interactive_init(void)
 	spin_lock_init(&down_cpumask_lock);
 	mutex_init(&set_speed_lock);
 
+	/* Kick the kthread to idle */
+	wake_up_process(up_task);
 	pm_qos_add_request(&core_lock.qos_min_req, PM_QOS_MIN_ONLINE_CPUS,
 			core_lock.min_core_keep);
 
