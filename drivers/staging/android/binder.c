@@ -3153,6 +3153,8 @@ static void binder_deferred_release(struct binder_proc *proc)
 
 	buffers = 0;
 	while ((n = rb_first(&proc->allocated_buffers))) {
+		struct binder_buffer *buffer;
+
 		buffer = rb_entry(n, struct binder_buffer, rb_node);
 
 		t = buffer->transaction;
