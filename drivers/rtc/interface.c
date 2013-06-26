@@ -71,6 +71,7 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 	} else
 		err = -EINVAL;
 
+	pm_stay_awake(rtc->dev.parent);
 	mutex_unlock(&rtc->ops_lock);
 	/* A timer might have just expired */
 	schedule_work(&rtc->irqwork);
@@ -112,6 +113,7 @@ int rtc_set_mmss(struct rtc_device *rtc, unsigned long secs)
 	else
 		err = -EINVAL;
 
+	pm_stay_awake(rtc->dev.parent);
 	mutex_unlock(&rtc->ops_lock);
 	/* A timer might have just expired */
 	schedule_work(&rtc->irqwork);
@@ -793,9 +795,10 @@ static int rtc_timer_enqueue(struct rtc_device *rtc, struct rtc_timer *timer)
 		alarm.time = rtc_ktime_to_tm(timer->node.expires);
 		alarm.enabled = 1;
 		err = __rtc_set_alarm(rtc, &alarm);
-		if (err == -ETIME)
+		if (err == -ETIME) {
+			pm_stay_awake(rtc->dev.parent);
 			schedule_work(&rtc->irqwork);
-		else if (err) {
+		} else if (err) {
 			timerqueue_del(&rtc->timerqueue, &timer->node);
 			timer->enabled = 0;
 			return err;
@@ -840,8 +843,10 @@ static void rtc_timer_remove(struct rtc_device *rtc, struct rtc_timer *timer)
 		alarm.time = rtc_ktime_to_tm(next->expires);
 		alarm.enabled = 1;
 		err = __rtc_set_alarm(rtc, &alarm);
-		if (err == -ETIME)
+		if (err == -ETIME) {
+			pm_stay_awake(rtc->dev.parent);
 			schedule_work(&rtc->irqwork);
+		}
 	}
 }
 
@@ -901,6 +906,7 @@ again:
 	} else
 		rtc_alarm_disable(rtc);
 
+	pm_relax(rtc->dev.parent);
 	mutex_unlock(&rtc->ops_lock);
 }
 
