@@ -374,7 +374,9 @@ static unsigned int idletimer_tg_target(struct sk_buff *skb,
 	}
 
 	/* TODO: Avoid modifying timers on each packet */
-	reset_timer(info);
+	mod_timer(&info->timer->timer,
+		  msecs_to_jiffies(info->timeout * 1000) + now);
+
 	return XT_CONTINUE;
 }
 
@@ -382,6 +384,7 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 {
 	struct idletimer_tg_info *info = par->targinfo;
 	int ret;
+	unsigned long now = jiffies;
 
 	pr_debug("checkentry targinfo %s\n", info->label);
 
@@ -402,7 +405,17 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 	info->timer = __idletimer_tg_find_by_label(info->label);
 	if (info->timer) {
 		info->timer->refcnt++;
-		reset_timer(info);
+		info->timer->active = true;
+
+		if (time_before(info->timer->timer.expires, now)) {
+			schedule_work(&info->timer->work);
+			pr_debug("Starting Checkentry timer"
+				"(Expired, Jiffies): %lu, %lu\n",
+				info->timer->timer.expires, now);
+		}
+
+		mod_timer(&info->timer->timer,
+			  msecs_to_jiffies(info->timeout * 1000) + now);
 		pr_debug("increased refcnt of timer %s to %u\n",
 			 info->label, info->timer->refcnt);
 	} else {
