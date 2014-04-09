@@ -1934,7 +1934,8 @@ static int binder_thread_write(struct binder_proc *proc,
 					proc->pid, thread->pid, debug_string, ref->debug_id,
 					ref->desc, ref->strong, ref->weak, ref->node->debug_id);
 			}
-			break;
+		  }
+		  break;
 		}
 		case BC_INCREFS_DONE:
 		case BC_ACQUIRE_DONE: {
