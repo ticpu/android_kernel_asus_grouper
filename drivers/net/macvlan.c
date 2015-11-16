@@ -169,6 +169,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 
 	port = macvlan_port_get_rcu(skb->dev);
 	if (is_multicast_ether_addr(eth->h_dest)) {
+		*pskb = skb;
 		src = macvlan_hash_lookup(port, eth->h_source);
 		if (!src)
 			/* frame comes from an external address */
@@ -209,6 +210,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 	if (!skb)
 		goto out;
 
+	*pskb = skb;
 	skb->dev = dev;
 	skb->pkt_type = PACKET_HOST;
 
