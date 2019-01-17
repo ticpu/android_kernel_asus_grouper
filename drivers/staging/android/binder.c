@@ -1940,7 +1940,6 @@ static int binder_thread_write(struct binder_proc *proc,
 					proc->pid, thread->pid, debug_string, ref->debug_id,
 					ref->desc, ref->strong, ref->weak, ref->node->debug_id);
 			}
-		  }
 		  break;
 		}
 		case BC_INCREFS_DONE:
@@ -3074,6 +3073,7 @@ static void binder_deferred_release(struct binder_proc *proc)
 	struct hlist_node *pos;
 	struct binder_transaction *t;
 	struct rb_node *n;
+	struct binder_buffer *buffer;
 	int threads, nodes, incoming_refs, outgoing_refs, buffers,
 		active_transactions, page_count;
 
@@ -3153,8 +3153,6 @@ static void binder_deferred_release(struct binder_proc *proc)
 
 	buffers = 0;
 	while ((n = rb_first(&proc->allocated_buffers))) {
-		struct binder_buffer *buffer;
-
 		buffer = rb_entry(n, struct binder_buffer, rb_node);
 
 		t = buffer->transaction;
