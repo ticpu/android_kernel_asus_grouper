@@ -1234,7 +1234,7 @@ static int tf_send_recv(struct tf_comm *comm,
 
 #ifdef CONFIG_FREEZER
 	saved_flags = current->flags;
-	current->flags |= PF_FREEZER_NOSIG;
+	current->flags |= PF_KTHREAD;
 #endif
 
 	/*
@@ -1406,8 +1406,8 @@ exit:
 	}
 
 #ifdef CONFIG_FREEZER
-	current->flags &= ~(PF_FREEZER_NOSIG);
-	current->flags |= (saved_flags & PF_FREEZER_NOSIG);
+	current->flags &= ~(PF_KTHREAD);
+	current->flags |= (saved_flags & PF_KTHREAD);
 #endif
 
 	return result;

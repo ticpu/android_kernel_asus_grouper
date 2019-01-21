@@ -831,7 +831,7 @@ static int usb_stor_scan_thread(void * __us)
 
 	dev_dbg(dev, "device found\n");
 
-	set_freezable_with_signal();
+	set_freezable();
 	/*
 	 * Wait for the timeout to expire or for a disconnect
 	 *
