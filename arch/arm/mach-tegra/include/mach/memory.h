@@ -32,7 +32,7 @@
 #if defined(CONFIG_MACH_GROUPER)
 #define END_MEM                            UL(0xBEA00000)
 #endif
--
+
 #if defined(CONFIG_KEXEC_HARDBOOT)
 #if defined(CONFIG_MACH_GROUPER)
 #define KEXEC_HB_PAGE_ADDR             UL(0xBEA00000)
