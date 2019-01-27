@@ -8,7 +8,7 @@ extern int smb347_event_fastcharge(void);
 // TODO: need to persist all 3 usbhost_* values 
 
 /* ----------------------------------------- */
-int usbhost_fixed_install_mode;
+int usbhost_fixed_install_mode = 0;
 
 static ssize_t fixed_install_mode_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
@@ -26,7 +26,7 @@ static struct kobj_attribute fixed_install_mode_attribute =
     __ATTR(usbhost_fixed_install_mode, 0666, fixed_install_mode_show, fixed_install_mode_store);
 
 /* ----------------------------------------- */
-int usbhost_fastcharge_in_host_mode;
+int usbhost_fastcharge_in_host_mode = 0;
 
 static ssize_t fastcharge_in_host_mode_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
@@ -44,7 +44,7 @@ static struct kobj_attribute fastcharge_in_host_mode_attribute =
     __ATTR(usbhost_fastcharge_in_host_mode, 0666, fastcharge_in_host_mode_show, fastcharge_in_host_mode_store);
 
 /* ----------------------------------------- */
-int usbhost_hotplug_on_boot;
+int usbhost_hotplug_on_boot = 0;
 
 static ssize_t hotplug_on_boot_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
@@ -77,7 +77,6 @@ static ssize_t hostmode_store(struct kobject *kobj, struct kobj_attribute *attr,
 static struct kobj_attribute hostmode_attribute = 
     __ATTR(usbhost_hostmode, 0666, hostmode_show, hostmode_store);
 
-/* ----------------------------------------- */
 static struct attribute *attrs[] = {
     &fixed_install_mode_attribute.attr,
     &hotplug_on_boot_attribute.attr,
@@ -97,13 +96,15 @@ int usbhost_init(void)
 	int retval;
 
 	// default values
-	usbhost_fixed_install_mode = 0;
+	usbhost_fixed_install_mode = 1;
 	usbhost_hotplug_on_boot = 1;
 	usbhost_fastcharge_in_host_mode = 0;
+
     printk("usbhost %s FI=%d HP=%d FC=%d\n", __func__, usbhost_fixed_install_mode,
     	usbhost_hotplug_on_boot, usbhost_fastcharge_in_host_mode);
 
     usbhost_kobj = kobject_create_and_add("usbhost", kernel_kobj);
+ 
     if (!usbhost_kobj) {
             return -ENOMEM;
     }

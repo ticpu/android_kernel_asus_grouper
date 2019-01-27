@@ -237,17 +237,12 @@ static void irq_work(struct work_struct *work)
 		dev_info(tegra->otg.dev, "%s --> %s\n", tegra_state_name(from),
 					      tegra_state_name(to));
 
-		// tmtmtm
-        smb347_deep_sleep = 0;
-		if (tegra->charger_cb) {
-			if (tegra_otg_on_charging)
-				/* enable v_bus detection for charging */
-				tegra->detect_vbus = true;
-			else
-				/* enable OTG to supply internal power */
-				tegra->charger_cb(to, from, tegra->charger_cb_data);				
-		}
+	        if(smb347_deep_sleep>0) {
+        		smb347_deep_sleep = 0;
+			dev_info(tegra->otg.dev, "smb347_deep_sleep cleared\n");
+        	}
 
+		// tmtmtm
 		if (to == OTG_STATE_A_SUSPEND) {
 			if (from == OTG_STATE_A_HOST) {
 				if (tegra->charger_cb) {
