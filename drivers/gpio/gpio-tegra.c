@@ -32,7 +32,6 @@
 #include <asm/mach/irq.h>
 
 #include <mach/iomap.h>
-#include <mach/legacy_irq.h>
 #include <mach/pinmux.h>
 
 #include "../../../arch/arm/mach-tegra/pm-irq.h"
@@ -91,7 +90,6 @@ struct tegra_gpio_bank {
 	u32 oe[4];
 	u32 int_enb[4];
 	u32 int_lvl[4];
-	u32 wake_enb[4];
 #endif
 };
 
@@ -193,7 +191,6 @@ static int tegra_gpio_get(struct gpio_chip *chip, unsigned offset)
 static int tegra_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	tegra_gpio_mask_write(GPIO_MSK_OE(offset), offset, 0);
-	tegra_gpio_enable(offset);
 	return 0;
 }
 
@@ -202,7 +199,6 @@ static int tegra_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 {
 	tegra_gpio_set(chip, offset, value);
 	tegra_gpio_mask_write(GPIO_MSK_OE(offset), offset, 1);
-	tegra_gpio_enable(offset);
 	return 0;
 }
 
@@ -217,21 +213,8 @@ static int tegra_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return TEGRA_GPIO_TO_IRQ(offset);
 }
 
-
-static int tegra_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-       return 0;
-}
-
-static void tegra_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-       tegra_gpio_disable(offset);
-}
-
 static struct gpio_chip tegra_gpio_chip = {
 	.label			= "tegra-gpio",
-        .request                = tegra_gpio_request,
-        .free                   = tegra_gpio_free,
 	.direction_input	= tegra_gpio_direction_input,
 	.get			= tegra_gpio_get,
 	.direction_output	= tegra_gpio_direction_output,
@@ -394,39 +377,11 @@ static int tegra_gpio_suspend(void)
 			bank->oe[p] = __raw_readl(GPIO_OE(gpio));
 			bank->int_enb[p] = __raw_readl(GPIO_INT_ENB(gpio));
 			bank->int_lvl[p] = __raw_readl(GPIO_INT_LVL(gpio));
-
-                        /* disable gpio interrupts that are not wake sources */
-                        __raw_writel(bank->wake_enb[p], GPIO_INT_ENB(gpio));
 		}
 	}
 	local_irq_restore(flags);
 
 	return 0;
-}
-
-static int tegra_update_lp1_gpio_wake(struct irq_data *d, bool enable)
-{
-#ifdef CONFIG_PM_SLEEP
-       struct tegra_gpio_bank *bank = irq_data_get_irq_chip_data(d);
-       u8 mask;
-       u8 port_index;
-       u8 pin_index_in_bank;
-       u8 pin_in_port;
-       int gpio = d->irq - INT_GPIO_BASE;
-
-       if (gpio < 0)
-               return -EIO;
-       pin_index_in_bank = (gpio & 0x1F);
-       port_index = pin_index_in_bank >> 3;
-       pin_in_port = (pin_index_in_bank & 0x7);
-       mask = BIT(pin_in_port);
-       if (enable)
-               bank->wake_enb[port_index] |= mask;
-       else
-               bank->wake_enb[port_index] &= ~mask;
-#endif
-
-       return 0;
 }
 
 static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
