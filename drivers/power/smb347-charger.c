@@ -1304,7 +1304,7 @@ static void inok_isr_work_function(struct work_struct *dat)
 	lastExternalPowerState = 1;
 
 	// host_mode_charging_state may have been set by cable_type_detect()
-	if(host_mode_charging_state>0 && host_mode_charging_state==0) {
+	if(host_mode_charging_state>0 && usbhost_hostmode==0) {
 		printk("inok_isr_work_function external power available, start host mode\n");
 		if(smb347_configure_otg(client, 1, 0, lastChargeSlaveDevicesState)<0)
 			dev_err(&client->dev, "%s() error in configuring"
