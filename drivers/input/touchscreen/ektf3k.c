@@ -1393,8 +1393,12 @@ static int elan_ktf3k_ts_register_interrupt(struct i2c_client *client)
 	struct elan_ktf3k_ts_data *ts = i2c_get_clientdata(client);
 	int err = 0;
 
-	err = request_irq(client->irq, elan_ktf3k_ts_irq_handler,
-			IRQF_TRIGGER_LOW, client->name, ts);
+        err = request_threaded_irq(client->irq, NULL, elan_ktf3k_ts_irq_handler,
+#ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
+                       IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_NO_SUSPEND, client->name, ts);
+#else
+                       IRQF_TRIGGER_LOW | IRQF_ONESHOT, client->name, ts);
+#endif
 	if (err)
 		dev_err(&client->dev, "[elan] %s: request_irq %d failed\n",
 				__func__, client->irq);
@@ -1954,19 +1958,18 @@ static int elan_ktf3k_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	touch_debug(DEBUG_INFO, "[elan] %s: enter\n", __func__);
 	if (dt2w_switch) {
 		enable_irq_wake(client->irq);
-		force_release_pos(client);
 	} else {
 		disable_irq(client->irq);
-		force_release_pos(client);
-		rc = cancel_work_sync(&ts->work);
-		if (rc)
-			enable_irq(client->irq);
-
-		if((work_lock == 0) && !dt2w_switch)
-			rc = elan_ktf3k_ts_set_power_state(client, PWR_STATE_DEEP_SLEEP);
 	}
-
+	force_release_pos(client);
 	scr_suspended = true;
+	rc = cancel_work_sync(&ts->work);
+	if (rc && !dt2w_switch)
+		enable_irq(client->irq);
+
+	if((work_lock == 0) && !dt2w_switch)
+		rc = elan_ktf3k_ts_set_power_state(client, PWR_STATE_DEEP_SLEEP);
+
 	return 0;
 }
 
@@ -1976,21 +1979,21 @@ static int elan_ktf3k_ts_resume(struct i2c_client *client)
 	int rc = 0, retry = 5;
 
 	touch_debug(DEBUG_INFO, "[elan] %s: enter\n", __func__);
+	if (work_lock == 0) {
+		do {
+			rc = elan_ktf3k_ts_set_power_state(client, PWR_STATE_NORMAL);
+			rc = elan_ktf3k_ts_get_power_state(client);
+			if (rc != PWR_NORMAL_STATE && rc != PWR_IDLE_STATE)
+				touch_debug(DEBUG_ERROR,  "[elan] %s: wake up tp failed! err = %d\n",
+					__func__, rc);
+			else
+				break;
+    		} while (--retry);
+	}
 	if (dt2w_switch) {
 		disable_irq_wake(client->irq);
-		force_release_pos(client);
+		//force_release_pos(client);
 	} else {
-		if (work_lock == 0) {
-			do {
-				rc = elan_ktf3k_ts_set_power_state(client, PWR_STATE_NORMAL);
-				rc = elan_ktf3k_ts_get_power_state(client);
-				if (rc != PWR_NORMAL_STATE && rc != PWR_IDLE_STATE)
-					touch_debug(DEBUG_ERROR,  "[elan] %s: wake up tp failed! err = %d\n",
-						__func__, rc);
-				else
-					break;
-	    		} while (--retry);
-		}
 		enable_irq(client->irq);
 	}
 
