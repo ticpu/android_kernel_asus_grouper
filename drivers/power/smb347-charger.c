@@ -400,6 +400,8 @@ static int smb347_configure_charger(struct i2c_client *client, int value)
 		if(!host_mode_charging_state) {
 			printk("smb347_configure_charger accept external power\n");
 			ret = smb347_update_reg(client, smb347_CMD_REG, ENABLE_CHARGE);
+                        printk("smb347_update_reg ENABLE_CHARGE ret=%d\n",ret);
+
 			if (ret < 0) {
 				dev_err(&client->dev, "%s(): Failed in writing register"
 						"0x%02x\n", __func__, smb347_CMD_REG);
@@ -424,6 +426,7 @@ static int smb347_configure_charger(struct i2c_client *client, int value)
 		}
 
 		ret = smb347_write(client, smb347_CMD_REG, (ret & (~(1<<1))));
+		printk("smb347_update_reg smb347_CMD_REG ret=%d\n",ret);
 		if (ret < 0) {
 			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
 			goto error;
@@ -452,6 +455,7 @@ static int smb347_pin_control(bool state)
 	if (state) {
 		/*Pin Controls -active low */
 		ret = smb347_update_reg(client, smb347_PIN_CTRL, PIN_ACT_LOW);
+		printk("smb347_update_reg smb347_PIN_CTRL, PIN_ACT_LOW ret=%d\n",ret);
 		if (ret < 0) {
 			dev_err(&client->dev, "%s(): Failed to"
 						"enable charger\n", __func__);
@@ -459,6 +463,7 @@ static int smb347_pin_control(bool state)
 	} else {
 		/*Pin Controls -active high */
 		ret = smb347_clear_reg(client, smb347_PIN_CTRL, PIN_ACT_LOW);
+		printk("smb347_clear_reg smb347_PIN_CTRL, PIN_ACT_LOW ret=%d\n",ret);
 		if (ret < 0) {
 			dev_err(&client->dev, "%s(): Failed to"
 						"disable charger\n", __func__);
@@ -531,6 +536,7 @@ smb347_set_InputCurrentlimit(struct i2c_client *client, u32 current_limit)
 	printk(KERN_INFO "[charger] Disable AICL, retval=%x setting=%x\n",
 		retval, setting);
 	ret = smb347_write(client, smb347_VRS_FUNC, setting);
+	printk("smb347_write smb347_VRS_FUNC, %x ret=%d\n",setting, ret);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s(): Failed in writing 0x%02x to register"
 			"0x%02x\n", __func__, setting, smb347_VRS_FUNC);
@@ -539,6 +545,7 @@ smb347_set_InputCurrentlimit(struct i2c_client *client, u32 current_limit)
 
 	/* set input current limit */
 	retval = smb347_read(client, smb347_CHRG_CRNTS);
+	printk("smb347_read smb347_CHRG_CRNTS ret=%d\n",setting, ret);
 	if (retval < 0) {
 		dev_err(&client->dev, "%s(): Failed in reading 0x%02x",
 			__func__, smb347_CHRG_CRNTS);
@@ -554,6 +561,7 @@ smb347_set_InputCurrentlimit(struct i2c_client *client, u32 current_limit)
 		current_limit, retval, setting);
 
 	ret = smb347_write(client, smb347_CHRG_CRNTS, setting);
+	printk("smb347_write smb347_CHRG_CRNTS, %x ret=%d\n",setting, ret);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s(): Failed in writing 0x%02x to register"
 			"0x%02x\n", __func__, setting, smb347_CHRG_CRNTS);
@@ -570,6 +578,7 @@ smb347_set_InputCurrentlimit(struct i2c_client *client, u32 current_limit)
 
 	/* AICL enable */
 	retval = smb347_read(client, smb347_VRS_FUNC);
+	printk("smb347_read smb347_VRS_FUNC ret=%d\n", retval);
 	if (retval < 0) {
 		dev_err(&client->dev, "%s(): Failed in reading 0x%02x",
 				__func__, smb347_VRS_FUNC);
@@ -580,6 +589,7 @@ smb347_set_InputCurrentlimit(struct i2c_client *client, u32 current_limit)
 	printk(KERN_INFO "[charger] re-enable AICL, setting=%x\n", setting);
 	msleep(20);
 	ret = smb347_write(client, smb347_VRS_FUNC, setting);
+	printk("smb347_write smb347_VRS_FUNC, %x ret=%d\n",setting, ret);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s(): Failed in writing 0x%02x to register"
 			"0x%02x\n", __func__, setting, smb347_VRS_FUNC);
@@ -750,6 +760,8 @@ int smb347_hc_mode_callback(bool enable, int cur)
 		/* Force switch to HC mode */
 		ret = smb347_update_reg(client, smb347_CMD_REG_B,
 						HC_MODE);
+	        printk("smb347_update_reg smb347_CMD_REG_B, HC_MODE ret=%d\n", ret);
+
 		if (ret < 0) {
 			dev_err(&client->dev, "%s(): Failed in writing"
 				"register 0x%02x\n", __func__, smb347_CMD_REG_B);
@@ -758,6 +770,7 @@ int smb347_hc_mode_callback(bool enable, int cur)
 
 		/* Change to i2c register control */
 		ret = smb347_clear_reg(client, smb347_PIN_CTRL, PIN_CTRL);
+		printk("smb347_clear_reg smb347_PIN_CTRL, PIN_CTRL ret=%d\n", ret);
 		if (ret < 0) {
 			dev_err(&client->dev, "%s(): Failed in writing"
 				"register 0x%02x\n", __func__, smb347_PIN_CTRL);
@@ -768,6 +781,7 @@ int smb347_hc_mode_callback(bool enable, int cur)
 	{
 		/* USB 2.0 input current limit (ICL) */
 		ret = smb347_clear_reg(client, smb347_SYSOK_USB3, USB_30);
+		printk("smb347_clear_reg smb347_SYSOK_USB3, USB_30 ret=%d\n", ret);
 		if (ret < 0) {
 			dev_err(&client->dev, "%s(): Failed in writing"
 				"register 0x%02x\n", __func__, smb347_SYSOK_USB3);
@@ -776,6 +790,7 @@ int smb347_hc_mode_callback(bool enable, int cur)
 
 		/* Switch back to USB mode */
 		ret = smb347_clear_reg(client, smb347_CMD_REG_B, HC_MODE);
+		printk("smb347_clear_reg smb347_CMD_REG_B, HC_MODE ret=%d\n", ret);
 		if (ret < 0) {
 			dev_err(&client->dev, "%s(): Failed in writing"
 				"register 0x%02x\n", __func__, smb347_CMD_REG_B);
@@ -785,6 +800,8 @@ int smb347_hc_mode_callback(bool enable, int cur)
 		if(cur) {
 			/* USB 500mA */
 			ret = smb347_update_reg(client, smb347_CMD_REG_B, USB_5_9_CUR);
+		        printk("smb347_update_reg smb347_CMD_REG_B, USB_5_9_CUR ret=%d\n", ret);
+
 			if (ret < 0) {
 				dev_err(&client->dev, "%s(): Failed in writing"
 					"register 0x%02x\n", __func__, smb347_CMD_REG_B);
@@ -793,6 +810,7 @@ int smb347_hc_mode_callback(bool enable, int cur)
 		} else {
 			/* USB 100mA */
 			ret = smb347_clear_reg(client, smb347_CMD_REG_B, USB_5_9_CUR);
+		        printk("smb347_clear_reg smb347_CMD_REG_B, USB_5_9_CUR ret=%d\n", ret);
 			if (ret < 0) {
 				dev_err(&client->dev, "%s(): Failed in writing"
 					"register 0x%02x\n", __func__, smb347_CMD_REG_B);
@@ -803,6 +821,7 @@ int smb347_hc_mode_callback(bool enable, int cur)
 		/* Disable auto power source detection (APSD) */
 		//printk("smb347_hc_mode_callback Disable auto power source detection\n");
 		ret = smb347_clear_reg(client, smb347_CHRG_CTRL, ENABLE_APSD);
+		printk("smb347_clear_reg smb347_CHRG_CTRL, ENABLE_APSD ret=%d\n", ret);
 		if (ret < 0) {
 			dev_err(&client->dev, "%s(): Failed in writing"
 				"register 0x%02x\n", __func__, smb347_CHRG_CTRL);
@@ -811,6 +830,7 @@ int smb347_hc_mode_callback(bool enable, int cur)
 
 		/* Change to i2c register control */
 		ret = smb347_clear_reg(client, smb347_PIN_CTRL, PIN_CTRL);
+		printk("smb347_clear_reg smb347_PIN_CTRL, PIN_CTRL ret=%d\n", ret);
 		if (ret < 0) {
 			dev_err(&client->dev, "%s(): Failed in writing"
 				"register 0x%02x\n", __func__, smb347_PIN_CTRL);
@@ -848,6 +868,7 @@ int smb347_battery_online(void)
 	}
 
 	val = smb347_read(client, smb347_INTR_STS_B);
+	printk("smb347_read smb347_INTR_STS_B ret=%d\n", val);
 	if (val < 0) {
 		dev_err(&client->dev, "%s(): Failed in reading register"
 				"0x%02x\n", __func__, smb347_INTR_STS_B);
@@ -883,6 +904,7 @@ static int smb347_configure_interrupts(struct i2c_client *client)
 	}
 	/* Setting: Fault assert STAT IRQ */
 	ret = smb347_update_reg(client, smb347_FAULT_INTR, 0x00);
+	printk("smb347_update_reg smb347_FAULT_INTR, 0x00 ret=%d\n", ret);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s(): Failed in writing register"
 				"0x%02x\n", __func__, smb347_CMD_REG);
@@ -890,6 +912,7 @@ static int smb347_configure_interrupts(struct i2c_client *client)
 	}
 	/* Setting: Status assert STAT IRQ */
 	ret = smb347_update_reg(client, smb347_STS_INTR_1, 0x14);
+	printk("smb347_update_reg smb347_STS_INTR_1, 0x14 ret=%d\n", ret);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
 		goto error;
@@ -1512,6 +1535,7 @@ static int smb347_temp_limit_setting(void)
 	val &= 0xcf;
 	/* Set Hard Limit Hot Temperature 59 Degree */
 	ret = smb347_write(client, smb347_HRD_SFT_TEMP, val | 0x20);
+	printk("smb347_write smb347_HRD_SFT_TEMP, %x ret=%d\n", val | 0x20, ret);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s(): Failed in writing 0x%02x to register"
 			"0x%02x\n", __func__, val, smb347_HRD_SFT_TEMP);
