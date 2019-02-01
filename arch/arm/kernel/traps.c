@@ -30,6 +30,7 @@
 
 #include <linux/atomic.h>
 #include <asm/cacheflush.h>
+#include <asm/exception.h>
 #include <asm/system.h>
 #include <asm/unistd.h>
 #include <asm/traps.h>
@@ -37,6 +38,8 @@
 #include <asm/tls.h>
 
 #include "signal.h"
+
+#include <trace/events/exception.h>
 
 static const char *handler[]= { "prefetch abort", "data abort", "address exception", "interrupt" };
 

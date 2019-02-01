@@ -2248,6 +2248,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup, sc->priority);
 		sc->nr_scanned = 0;
 		shrink_zones(priority, zonelist, sc);
+
 		/*
 		 * Don't shrink slabs when reclaiming memory from
 		 * over limit cgroups

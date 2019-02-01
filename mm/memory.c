@@ -1409,10 +1409,6 @@ int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
 }
 EXPORT_SYMBOL_GPL(zap_vma_ptes);
 
-/*
- * FOLL_FORCE can write to even unwritable pte's, but only
- * after we've gone through a COW cycle and they are dirty.
- */
 static inline bool can_follow_write_pte(pte_t pte, struct page *page,
 					unsigned int flags)
 {
@@ -1519,7 +1515,6 @@ split_fallthrough:
 		pte_unmap_unlock(ptep, ptl);
 		return NULL;
 	}
-
 
 	if (unlikely(!page)) {
 		if ((flags & FOLL_DUMP) ||
