@@ -267,8 +267,8 @@ static int smb347_configure_otg(struct i2c_client *client, int enableOTG, int ch
 {
 	int ret = 0;
 
-        printk("smb347_configure_otg otg=%d chargeSlaves=%d stopSlaves=%d lastOtg=%d\n",
-            enableOTG, chargeSlaves, stopChargeSlaves, usbhost_hostmode);
+    printk("smb347_configure_otg otg=%d chargeSlaves=%d stopSlaves=%d lastOtg=%d\n",
+      enableOTG, chargeSlaves, stopChargeSlaves, usbhost_hostmode);
 
 	/*Enable volatile writes to registers*/
 	ret = smb347_volatile_writes(client, smb347_ENABLE_WRITE);
@@ -1165,29 +1165,33 @@ static int cable_type_detect(void)
 	                                    touch_callback(usb_cable);
 #endif
 					} else if(retval == APSD_HOST_MODE_CHARGING) {	// tmtmtm
-						if(usbhost_fastcharge_in_host_mode) {
+
+                        if(usbhost_fastcharge_in_host_mode) {
 						    printk(KERN_INFO "Cable: host mode charging ac\n");
 						    charger->cur_cable_type = ac_cable;
 						    success = battery_callback(ac_cable);
 #ifdef TOUCH_CALLBACK_ENABLED
-	                                    touch_callback(ac_cable);
+                            touch_callback(ac_cable);
 #endif
-					         } else {
+                        } else {
 						    printk(KERN_INFO "Cable: host mode charging usb\n");
 						    charger->cur_cable_type = usb_cable;
 						    success = battery_callback(usb_cable);
 #ifdef TOUCH_CALLBACK_ENABLED
-                            			touch_callback(usb_cable);
+                            touch_callback(usb_cable);
 #endif
-                        			}
-					    host_mode_charging_state = 1;					// tmtmtm
+                        }
+					    host_mode_charging_state = 1; // tmtmtm
 
 					} else {
 						charger->cur_cable_type = unknow_cable;
 						printk(KERN_INFO "Unkown Plug In Cable type !\n");
-						if (gpio_get_value(dock_in)) {
-							charger->cur_cable_type = usb_cable;
-							success = battery_callback(usb_cable);
+
+						if(usb_det_cable_type) {
+							printk(KERN_INFO "Use usb det %s cable to report\n",
+								(usb_det_cable_type == ac_cable) ? "ac" : "usb");
+							charger->cur_cable_type = usb_det_cable_type;
+							success = battery_callback(usb_det_cable_type);
 						}
 					}
 				} else {
@@ -1310,16 +1314,17 @@ static void inok_isr_work_function(struct work_struct *dat)
 			// make device aware it is now discharging
 			lastExternalPowerState = 0;
 		}
-        	if(!lastChargeSlaveDevicesState) {
-            		// make external power detectable
-            		printk("inok_isr_work_function make external power detectable2\n");
-	        	// 2013-01-28: crash here after
-            		int ret = smb347_configure_interrupts(client);
-            		if (ret < 0)
-	            		dev_err(&client->dev, "%s() error in configuring"
-						            "otg..\n", __func__);
-            		printk("inok_isr_work_function make external power detectable2 done\n");
-        	}
+
+        if(!lastChargeSlaveDevicesState) {
+            // make external power detectable
+            printk("inok_isr_work_function make external power detectable2\n");
+	        // 2013-01-28: crash here after (in the mobile version only?)
+            int ret = smb347_configure_interrupts(client);
+            if (ret < 0)
+	            dev_err(&client->dev, "%s() error in configuring"
+				            "otg..\n", __func__);
+            printk("inok_isr_work_function make external power detectable2 done\n");
+        }
 		return;
 	}
 
