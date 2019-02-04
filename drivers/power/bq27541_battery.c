@@ -273,7 +273,7 @@ static struct bq27541_device_info {
 	unsigned int old_temperature;
 	unsigned int temp_err;
 	unsigned int prj_id;
-	struct mutex lock;
+	spinlock_t lock;
 } *bq27541_device;
 
 static int bq27541_read_i2c(u8 reg, int *rt_value, int b_single)

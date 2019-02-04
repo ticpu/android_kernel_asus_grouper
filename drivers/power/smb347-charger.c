@@ -629,6 +629,7 @@ static irqreturn_t smb347_inok_isr(int irq, void *dev_id)
 {
 	struct smb347_charger *smb = dev_id;
 
+	disable_irq_nosync(irq);
 	queue_delayed_work(smb347_wq, &smb->inok_isr_work, 0.6*HZ);
 
 	return IRQ_HANDLED;
@@ -638,6 +639,7 @@ static irqreturn_t smb347_dockin_isr(int irq, void *dev_id)
 {
 	struct smb347_charger *smb = dev_id;
 
+	disable_irq_nosync(irq);
 	queue_delayed_work(smb347_wq, &smb->dockin_isr_work, 0*HZ);
 
 	return IRQ_HANDLED;
@@ -1667,6 +1669,7 @@ static int __devinit smb347_probe(struct i2c_client *client,
 		goto error;
 	}
 
+	cable_type_detect();
 	queue_delayed_work(smb347_wq, &charger->cable_det_work, 0.5*HZ);
 	ret = register_otg_callback(smb347_otg_status, charger);
 	if (ret < 0)
