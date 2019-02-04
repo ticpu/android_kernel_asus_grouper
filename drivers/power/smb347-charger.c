@@ -164,9 +164,17 @@ static const struct attribute_group smb347_group = {
 
 static int smb347_read(struct i2c_client *client, int reg)
 {
-	int ret;
+        int ret, i;
+ 
+        for(i = 0; i < 3; i ++)
+        {
+                ret = i2c_smbus_read_byte_data(client, reg);
 
-	ret = i2c_smbus_read_byte_data(client, reg);
+                if(ret >= 0)
+                {
+                        break;
+                }
+        }
 
 	if (ret < 0)
 		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
@@ -176,9 +184,17 @@ static int smb347_read(struct i2c_client *client, int reg)
 
 static int smb347_write(struct i2c_client *client, int reg, u8 value)
 {
-	int ret;
+        int ret, i;
 
-	ret = i2c_smbus_write_byte_data(client, reg, value);
+        for(i = 0; i < 3; i ++)
+        {
+                ret = i2c_smbus_write_byte_data(client, reg, value);
+ 
+                if(ret >= 0)
+                {
+                        break;
+                }
+        }
 
 	if (ret < 0)
 		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
