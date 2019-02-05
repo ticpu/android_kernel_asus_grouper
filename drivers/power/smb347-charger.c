@@ -133,6 +133,7 @@ static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr
 static struct smb347_charger *charger;
 static struct workqueue_struct *smb347_wq;
 struct wake_lock charger_wakelock;
+struct wake_lock charger_ac_detec_wakelock;
 static unsigned int project_id;
 static unsigned int pcba_ver;
 static int gpio_dock_in = 0;
@@ -645,7 +646,7 @@ static irqreturn_t smb347_inok_isr(int irq, void *dev_id)
 {
 	struct smb347_charger *smb = dev_id;
 
-	disable_irq_nosync(irq);
+	wake_lock_timeout(&charger_ac_detec_wakelock, 2*HZ);
 	queue_delayed_work(smb347_wq, &smb->inok_isr_work, 0.6*HZ);
 
 	return IRQ_HANDLED;
@@ -1661,6 +1662,8 @@ static int __devinit smb347_probe(struct i2c_client *client,
 
 	wake_lock_init(&charger_wakelock, WAKE_LOCK_SUSPEND,
 			"charger_configuration");
+        wake_lock_init(&charger_ac_detec_wakelock, WAKE_LOCK_SUSPEND,
+                        "charger_ac_detec_wakelock");
 	INIT_DELAYED_WORK(&charger->curr_limit_work,
 			smb347_set_curr_limit_work_func);
 	INIT_DELAYED_WORK(&charger->test_fail_clear_work,
