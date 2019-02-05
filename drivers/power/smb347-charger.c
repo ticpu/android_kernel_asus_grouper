@@ -86,7 +86,19 @@
 #define SMB347_CHARGING_STATUS	(1 << 5)
 #define SMB347_CHARGER_ERROR	(1 << 6)
 
+#define ENABLE_CHARGER		0x82
+#define DISABLE_CHARGER		0x80
+
+struct smb347_chg_data {
+	struct i2c_client *client;
+	struct smb_charger_data *pdata;
+	struct smb_charger_callbacks *callbacks;
+};
+
+static struct smb347_chg_data *smb347_chg;
+
 /*----------------------------------------------*/
+
 
 #define smb347_ENABLE_WRITE	1
 #define smb347_DISABLE_WRITE	0
@@ -101,8 +113,6 @@
 #define CHARGING		0x06
 #define DEDICATED_CHARGER	0x02
 #define CHRG_DOWNSTRM_PORT	0x04
-#define ENABLE_CHARGE		0x02
-#define DISABLE_CHARGER		0
 #define USBIN		0x80
 #define APSD_OK		0x08
 #define APSD_RESULT		0x07
@@ -286,6 +296,92 @@ static void smb347_clear_interrupts(struct i2c_client *client)
 	if (val < 0)
 		dev_err(&client->dev, "%s(): Failed in clearing interrupts\n",
 								__func__);
+}
+
+static void smb347_enable_charging(struct smb347_chg_data *chg)
+{
+	pr_info("%s\n", __func__);
+	smb347_write(chg->client, SMB347_COMMAND_A, ENABLE_CHARGER);
+}
+
+static void smb347_disable_charging(struct smb347_chg_data *chg)
+{
+	pr_info("%s\n", __func__);
+	smb347_write(chg->client, SMB347_COMMAND_A, DISABLE_CHARGER);
+}
+
+static bool smb347_check_powersource(struct smb347_chg_data *chg)
+{
+	/*
+	 * TODO: check real device
+	if (!gpio_get_value(chg->pdata->ta_nconnected)) {
+		pr_err("smb347 power source is not detected\n");
+		return false;
+	}
+	*/
+	return true;
+}
+
+static void smb347_charger_init(struct smb347_chg_data *chg)
+{
+	pr_info("%s\n", __func__);
+
+	/* Only for P4C rev0.2, Check vbus for opeartion charger */
+	if (!smb347_check_powersource(chg))
+		return;
+
+	/* Set GPIO_TA_EN as HIGH, charging disable */
+	smb347_disable_charging(chg);
+	mdelay(100);
+
+	/* Allow volatile writes to CONFIG registers */
+	smb347_write(chg->client, SMB347_COMMAND_A, 0x80);
+
+	/* Command B : USB1 mode, USB mode */
+	smb347_write(chg->client, SMB347_COMMAND_B, 0x00);
+
+	/* Charge curr : Fast-chg 2200mA */
+	/* Pre-charge curr 250mA, Term curr 250mA */
+	smb347_write(chg->client, SMB347_CHARGE_CURRENT, 0xDD);
+
+	/* Pin enable control : Charger enable control EN Pin - I2C */
+	/*  : USB5/1/HC or USB9/1.5/HC Control - Register Control */
+	/*  : USB5/1/HC Input state - Tri-state Input */
+	smb347_write(chg->client, SMB347_PIN_ENABLE_CONTROL, 0x00);
+
+	/* Input current limit : DCIN 1800mA, USBIN HC 1800mA */
+	smb347_write(chg->client, SMB347_INPUT_CURRENTLIMIT, 0x66);
+
+	/* Various func. : USBIN primary input, VCHG func. enable */
+	smb347_write(chg->client, SMB347_VARIOUS_FUNCTIONS, 0xB7);
+
+	/* Float voltage : 4.2V */
+	smb347_write(chg->client, SMB347_FLOAT_VOLTAGE, 0x63);
+
+	/* Charge control : Auto recharge disable, APSD disable */
+	smb347_write(chg->client, SMB347_CHARGE_CONTROL, 0x80);
+
+	/* STAT, Timer control : STAT active low, Complete time out 1527min. */
+	smb347_write(chg->client, SMB347_STAT_TIMERS_CONTROL, 0x1A);
+
+	/* Therm control : Therm monitor disable */
+	smb347_write(chg->client, SMB347_THERM_CONTROL_A, 0xBF);
+
+	/* Other control */
+	smb347_write(chg->client, SMB347_OTHER_CONTROL_A, 0x0D);
+
+	/* OTG tlim therm control */
+	smb347_write(chg->client, SMB347_OTG_TLIM_THERM_CONTROL, 0x3F);
+
+	/* Limit cell temperature */
+	smb347_write(chg->client, SMB347_LIMIT_CELL_TEMPERATURE_MONITOR,
+	0x01);
+
+	/* Fault interrupt : Clear */
+	smb347_write(chg->client, SMB347_FAULT_INTERRUPT, 0x00);
+
+	/* STATUS ingerrupt : Clear */
+	smb347_write(chg->client, SMB347_STATUS_INTERRUPT, 0x00);
 }
 
 static int smb347_configure_otg(struct i2c_client *client, int enableOTG, int chargeSlaves, int stopChargeSlaves)
