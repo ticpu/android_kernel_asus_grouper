@@ -520,7 +520,7 @@ static int smb347_configure_charger(struct i2c_client *client, int value)
 	if (value) {
 		if(!host_mode_charging_state) {
 			printk("smb347_configure_charger accept external power\n");
-			ret = smb347_update_reg(client, SMB347_COMMAND_A, ENABLE_CHARGE);
+			ret = smb347_update_reg(client, SMB347_COMMAND_A, ENABLE_CHARGER);
                         printk("smb347_update_reg ENABLE_CHARGE ret=%d\n",ret);
 
 			if (ret < 0) {
