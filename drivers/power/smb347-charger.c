@@ -384,6 +384,88 @@ static void smb347_charger_init(struct smb347_chg_data *chg)
 	smb347_write(chg->client, SMB347_STATUS_INTERRUPT, 0x00);
 }
 
+static u8 smb347_get_input_current_limit_data(int input_current)
+{
+	u8 data;
+
+	if (input_current <= 300)
+		data = 0x0;
+	else if (input_current <= 500)
+		data = 0x1;
+	else if (input_current <= 700)
+		data = 0x2;
+	else if (input_current <= 900)
+		data = 0x3;
+	else if (input_current <= 1200)
+		data = 0x4;
+	else if (input_current <= 1500)
+		data = 0x5;
+	else if (input_current <= 1800)
+		data = 0x6;
+	else if (input_current <= 2000)
+		data = 0x7;
+	else if (input_current <= 2200)
+		data = 0x8;
+	else if (input_current <= 2500)
+		data = 0x9;
+	else
+		data = 0;
+
+	return data;
+}
+
+static u8 smb347_get_termination_current_limit_data(int termination_current)
+{
+	u8 data;
+
+	if (termination_current <= 37)
+		data = 0x0;
+	else if (termination_current <= 50)
+		data = 0x1;
+	else if (termination_current <= 100)
+		data = 0x2;
+	else if (termination_current <= 150)
+		data = 0x3;
+	else if (termination_current <= 200)
+		data = 0x4;
+	else if (termination_current <= 250)
+		data = 0x5;
+	else if (termination_current <= 500)
+		data = 0x6;
+	else if (termination_current <= 600)
+		data = 0x7;
+	else
+		data = 0;
+
+	return data;
+}
+
+static u8 smb347_get_fast_charging_current_data(int fast_charging_current)
+{
+	u8 data;
+
+	if (fast_charging_current <= 700)
+		data = 0x0;
+	else if (fast_charging_current <= 900)
+		data = 0x1;
+	else if (fast_charging_current <= 1200)
+		data = 0x2;
+	else if (fast_charging_current <= 1500)
+		data = 0x3;
+	else if (fast_charging_current <= 1800)
+		data = 0x4;
+	else if (fast_charging_current <= 2000)
+		data = 0x5;
+	else if (fast_charging_current <= 2200)
+		data = 0x6;
+	else if (fast_charging_current <= 2500)
+		data = 0x7;
+	else
+		data = 0;
+
+	return data << 5;
+}
+
 static int smb347_configure_otg(struct i2c_client *client, int enableOTG, int chargeSlaves, int stopChargeSlaves)
 {
 	int ret = 0;
@@ -673,10 +755,7 @@ smb347_set_InputCurrentlimit(struct i2c_client *client, u32 current_limit)
 		goto error;
 	}
 	setting = retval & 0xF0;
-	if (current_limit > 900)
-		setting |= 0x06;
-	else
-		setting |= 0x03;
+	setting |= smb347_get_input_current_limit_data(current_limit);
 
 	printk(KERN_INFO "[charger] set charger limit, limit=%u retval =%x setting=%x\n",
 		current_limit, retval, setting);
@@ -750,6 +829,7 @@ static irqreturn_t smb347_inok_isr(int irq, void *dev_id)
 {
 	struct smb347_charger *smb = dev_id;
 
+	disable_irq_nosync(irq);
 	wake_lock_timeout(&charger_ac_detec_wakelock, 2*HZ);
 	queue_delayed_work(smb347_wq, &smb->inok_isr_work, 0.6*HZ);
 
