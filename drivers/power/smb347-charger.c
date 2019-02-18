@@ -712,7 +712,7 @@ smb347_set_InputCurrentlimit(struct i2c_client *client, u32 current_limit)
 	if (charger->curr_limit == current_limit)
 		return  ret;
 
-	printk("smb347_set_InputCurrentlimit %02x\n",current_limit);
+	printk("smb347_set_InputCurrentlimit %08x\n",current_limit);
 
 	wake_lock(&charger_wakelock);
 	/* Enable volatile writes to registers */
