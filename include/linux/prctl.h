@@ -124,6 +124,7 @@
 #define PR_SET_CHILD_SUBREAPER 36
 #define PR_GET_CHILD_SUBREAPER 37
 
+/*
  * Get effective timerslack value for the process.
  * It can be higher than PR_GET_TIMERSLACK.
  */

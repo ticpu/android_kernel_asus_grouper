@@ -1810,19 +1810,6 @@ static inline void task_set_no_new_privs(struct task_struct *p)
 	set_bit(PFA_NO_NEW_PRIVS, &p->atomic_flags);
 }
 
-/* Per-process atomic flags. */
-#define PFA_NO_NEW_PRIVS 0x00000001	/* May not gain new privileges. */
-
-static inline bool task_no_new_privs(struct task_struct *p)
-{
-	return test_bit(PFA_NO_NEW_PRIVS, &p->atomic_flags);
-}
-
-static inline void task_set_no_new_privs(struct task_struct *p)
-{
-	set_bit(PFA_NO_NEW_PRIVS, &p->atomic_flags);
-}
-
 /*
  * task->jobctl flags
  */

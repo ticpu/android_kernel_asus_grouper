@@ -2162,26 +2162,6 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			put_task_struct(tsk);
 			error = 0;
 			break;
-		case PR_SET_TIMERSLACK_PID:
-			if (task_pid_vnr(current) != (pid_t)arg3 &&
-					!capable(CAP_SYS_NICE))
-				return -EPERM;
-			rcu_read_lock();
-			tsk = find_task_by_vpid((pid_t)arg3);
-			if (tsk == NULL) {
-				rcu_read_unlock();
-				return -EINVAL;
-			}
-			get_task_struct(tsk);
-			rcu_read_unlock();
-			if (arg2 <= 0)
-				tsk->timer_slack_ns =
-					tsk->default_timer_slack_ns;
-			else
-				tsk->timer_slack_ns = arg2;
-			put_task_struct(tsk);
-			error = 0;
-			break;
 		case PR_SET_NO_NEW_PRIVS:
 			if (arg2 != 1 || arg3 || arg4 || arg5)
 				return -EINVAL;
