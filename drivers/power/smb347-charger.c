@@ -829,8 +829,8 @@ static irqreturn_t smb347_inok_isr(int irq, void *dev_id)
 {
 	struct smb347_charger *smb = dev_id;
 
-	disable_irq_nosync(irq);
-	wake_lock_timeout(&charger_ac_detec_wakelock, 2*HZ);
+	//disable_irq_nosync(irq);
+	//wake_lock_timeout(&charger_ac_detec_wakelock, 2*HZ);
 	queue_delayed_work(smb347_wq, &smb->inok_isr_work, 0.6*HZ);
 
 	return IRQ_HANDLED;
@@ -840,7 +840,7 @@ static irqreturn_t smb347_dockin_isr(int irq, void *dev_id)
 {
 	struct smb347_charger *smb = dev_id;
 
-	disable_irq_nosync(irq);
+	//disable_irq_nosync(irq);
 	queue_delayed_work(smb347_wq, &smb->dockin_isr_work, 0*HZ);
 
 	return IRQ_HANDLED;
