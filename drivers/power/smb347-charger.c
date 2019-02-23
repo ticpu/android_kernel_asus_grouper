@@ -1268,15 +1268,13 @@ static int cable_type_detect(void)
 	int dock_in = gpio_dock_in;
 
 	printk(KERN_INFO "cable_type_detect()\n");
-	/*
 	   printk("cable_type_detect 0x%02x %lu 0x%02x %x jiffies=%lu %lu+\n",
 	   charger->old_cable_type,
 	   charger->time_of_1800mA_limit,
 	   gpio_get_value(gpio),
-	   time_after(charger->time_of_1800mA_limit+(4*HZ), jiffies ),
+	   time_after(charger->time_of_1800mA_limit+ADAPTER_PROTECT_DELAY), jiffies ),
 	   jiffies,
-	   charger->time_of_1800mA_limit+(ADAPTER_PROTECT_DELAY*HZ));
-	   */
+	   charger->time_of_1800mA_limit+ADAPTER_PROTECT_DELAY);
 
 	if((pcba_ver <= GROUPER_PCBA_ER2) && (project_id == GROUPER_PROJECT_NAKASI)) {
 		printk(KERN_INFO "cable_type_detect() wrong\n");
@@ -1388,6 +1386,9 @@ static int cable_type_detect(void)
 									(usb_det_cable_type == ac_cable) ? "ac" : "usb");
 							charger->cur_cable_type = usb_det_cable_type;
 							success = battery_callback(usb_det_cable_type);
+#ifdef TOUCH_CALLBACK_ENABLED
+							touch_callback(usb_det_cable_type);
+#endif
 						}
 					}
 				} else {
@@ -1404,6 +1405,9 @@ static int cable_type_detect(void)
 					printk(KERN_INFO "cable_type_detect() disabled host_mode_charging_state ############\n");
 				}
 				success = battery_callback(non_cable);
+#ifdef TOUCH_CALLBACK_ENABLED
+				touch_callback(non_cable);
+#endif
 			}
 		}
 	}
