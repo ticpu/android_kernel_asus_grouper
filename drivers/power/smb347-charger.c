@@ -1762,12 +1762,6 @@ int smb347_config_thermal_charging(int temp)
 	mdelay(150);
 	SMB_NOTICE("temp=%d\n", temp);
 
-	ret = smb347_volatile_writes(client, smb347_ENABLE_WRITE);
-	if (ret < 0) {
-		dev_err(&client->dev, "%s() charger enable write error..\n", __func__);
-		goto error;
-	}
-
 	/*charger enable/disable*/
 	retval = smb347_read(client, SMB347_PIN_ENABLE_CONTROL);
 	if (retval < 0) {
@@ -1789,12 +1783,6 @@ int smb347_config_thermal_charging(int temp)
 			smb347_charger_enable(true);
 		} else
 			SMB_NOTICE("Bypass charger enable\n");
-	}
-
-	ret = smb347_volatile_writes(client, smb347_DISABLE_WRITE);
-	if (ret < 0) {
-		dev_err(&client->dev, "%s() charger enable write error..\n", __func__);
-		goto error;
 	}
 error:
 	return ret;
