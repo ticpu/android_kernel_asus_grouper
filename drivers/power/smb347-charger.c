@@ -828,6 +828,8 @@ static irqreturn_t smb347_inok_isr(int irq, void *dev_id)
 {
 	struct smb347_charger *smb = dev_id;
 
+        disable_irq_nosync(irq);
+        wake_lock_timeout(&charger_ac_detec_wakelock, 2*HZ);
 	queue_delayed_work(smb347_wq, &smb->inok_isr_work, 0.6*HZ);
 
 	return IRQ_HANDLED;
@@ -837,6 +839,7 @@ static irqreturn_t smb347_dockin_isr(int irq, void *dev_id)
 {
 	struct smb347_charger *smb = dev_id;
 
+	disable_irq_nosync(irq);
 	queue_delayed_work(smb347_wq, &smb->dockin_isr_work, 0*HZ);
 
 	return IRQ_HANDLED;
@@ -1819,6 +1822,9 @@ static int __devinit smb347_probe(struct i2c_client *client,
 	mutex_init(&charger->pinctrl_lock);
 
 	wake_lock_init(&charger->wake_lock_dockin, WAKE_LOCK_SUSPEND, "wake_lock_dockin");
+        wake_lock_init(&charger_ac_detec_wakelock, WAKE_LOCK_SUSPEND,
+                        "charger_ac_detec_wakelock");
+
 
 	smb347_wq = create_singlethread_workqueue("smb347_wq");
 	INIT_DELAYED_WORK_DEFERRABLE(&charger->inok_isr_work, inok_isr_work_function);
