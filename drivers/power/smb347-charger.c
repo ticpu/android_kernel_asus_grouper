@@ -1570,11 +1570,11 @@ static void dockin_isr_work_function(struct work_struct *dat)
 static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = charger->client;
-	uint8_t config_reg[15], cmd_reg[2], status_reg[11];
+	uint8_t config_reg[18], cmd_reg[2], status_reg[11];
 	char tmp_buf[64];
 	int i, cfg_ret, cmd_ret, sts_ret = 0;
 
-	cfg_ret = i2c_smbus_read_i2c_block_data(client, SMB347_CHARGE_CURRENT, 15, config_reg);
+	cfg_ret = i2c_smbus_read_i2c_block_data(client, SMB347_CHARGE_CURRENT, 18, config_reg);
 	cmd_ret = i2c_smbus_read_i2c_block_data(client, SMB347_COMMAND_A, 2, cmd_reg);
 	sts_ret = i2c_smbus_read_i2c_block_data(client, SMB347_INTERRUPT_STATUS_A, 11, status_reg);
 
@@ -1583,7 +1583,7 @@ static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr
 	strcpy(buf, tmp_buf);
 
 	if (cfg_ret > 0) {
-		for(i=0;i<=14;i++) {
+		for(i=0;i<=17;i++) {
 			sprintf(tmp_buf, "Reg%02xh:\t0x%02x\n", i, config_reg[i]);
 			strcat(buf, tmp_buf);
 		}
