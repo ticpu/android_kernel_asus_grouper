@@ -151,6 +151,7 @@ static ssize_t smb347_reg_show(struct device *dev, struct device_attribute *attr
 static struct smb347_charger *charger;
 static struct workqueue_struct *smb347_wq;
 struct wake_lock charger_wakelock;
+struct wake_lock charger_ac_detec_wakelock;
 static unsigned int project_id;
 static unsigned int pcba_ver;
 static int gpio_dock_in = 0;
