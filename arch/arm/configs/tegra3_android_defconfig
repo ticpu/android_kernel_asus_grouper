@@ -1465,11 +1465,6 @@ CONFIG_INPUT_GPIO=y
 # CONFIG_INPUT_CAPELLA_CM3217 is not set
 
 #
-# Proximity sensors
-#
-CONFIG_SENSORS_CAP1106=y
-
-#
 # Hardware I/O ports
 #
 CONFIG_SERIO=y
