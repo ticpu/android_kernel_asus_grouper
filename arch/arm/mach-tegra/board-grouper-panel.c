@@ -238,7 +238,7 @@ static int grouper_panel_postpoweron(void)
 	gpio_set_value(grouper_lvds_shutdown, 1);
 //	gpio_set_value(grouper_lvds_lr, 1);
 
-	mdelay(200);
+	mdelay(50);
 
 	return 0;
 }
@@ -254,7 +254,6 @@ static int grouper_panel_enable(void)
 		else
 			regulator_enable(grouper_lvds_vdd_panel);
 	}
-	msleep(20);
 
 	if( grouper_get_project_id() == GROUPER_PROJECT_BACH )
 	{

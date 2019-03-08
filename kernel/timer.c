@@ -63,6 +63,7 @@ EXPORT_SYMBOL(jiffies_64);
 #define TVR_SIZE (1 << TVR_BITS)
 #define TVN_MASK (TVN_SIZE - 1)
 #define TVR_MASK (TVR_SIZE - 1)
+#define MAX_TVAL ((unsigned long)((1ULL << (TVR_BITS + 4*TVN_BITS)) - 1))
 
 struct tvec {
 	struct list_head vec[TVN_SIZE];
@@ -83,6 +84,7 @@ struct tvec_base {
 	struct tvec tv3;
 	struct tvec tv4;
 	struct tvec tv5;
+	int tv1_cnt;	/* number of newly inserted timers in tv1 */
 } ____cacheline_aligned;
 
 struct tvec_base boot_tvec_bases;
@@ -145,9 +147,11 @@ static unsigned long round_jiffies_common(unsigned long j, int cpu,
 	/* now that we have rounded, subtract the extra skew again */
 	j -= cpu * 3;
 
-	if (j <= jiffies) /* rounding ate our timeout entirely; */
-		return original;
-	return j;
+	/*
+	 * Make sure j is still in the future. Otherwise return the
+	 * unmodified value.
+	 */
+	return time_is_after_jiffies(j) ? j : original;
 }
 
 /**
@@ -341,6 +345,7 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 	if (idx < TVR_SIZE) {
 		int i = expires & TVR_MASK;
 		vec = base->tv1.vec + i;
+		base->tv1_cnt++;
 	} else if (idx < 1 << (TVR_BITS + TVN_BITS)) {
 		int i = (expires >> TVR_BITS) & TVN_MASK;
 		vec = base->tv2.vec + i;
@@ -356,13 +361,15 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 		 * or you set a timer to go off in the past
 		 */
 		vec = base->tv1.vec + (base->timer_jiffies & TVR_MASK);
+		base->tv1_cnt++;
 	} else {
 		int i;
-		/* If the timeout is larger than 0xffffffff on 64-bit
-		 * architectures then we use the maximum timeout:
+		/* If the timeout is larger than MAX_TVAL (on 64-bit
+		 * architectures or with CONFIG_BASE_SMALL=1) then we
+		 * use the maximum timeout.
 		 */
-		if (idx > 0xffffffffUL) {
-			idx = 0xffffffffUL;
+		if (idx > MAX_TVAL) {
+			idx = MAX_TVAL;
 			expires = idx + base->timer_jiffies;
 		}
 		i = (expires >> (TVR_BITS + 3 * TVN_BITS)) & TVN_MASK;
@@ -414,6 +421,12 @@ static int timer_fixup_init(void *addr, enum debug_obj_state state)
 	}
 }
 
+/* Stub timer callback for improperly used timers. */
+static void stub_timer(unsigned long data)
+{
+	WARN_ON(1);
+}
+
 /*
  * fixup_activate is called when:
  * - an active object is activated
@@ -437,7 +450,8 @@ static int timer_fixup_activate(void *addr, enum debug_obj_state state)
 			debug_object_activate(timer, &timer_debug_descr);
 			return 0;
 		} else {
-			WARN_ON_ONCE(1);
+			setup_timer(timer, stub_timer, 0);
+			return 1;
 		}
 		return 0;
 
@@ -758,7 +772,7 @@ unsigned long apply_slack(struct timer_list *timer, unsigned long expires)
 
 	bit = find_last_bit(&mask, BITS_PER_LONG);
 
-	mask = (1 << bit) - 1;
+	mask = (1UL << bit) - 1;
 
 	expires_limit = expires_limit & ~(mask);
 
@@ -1076,11 +1090,29 @@ static inline void __run_timers(struct tvec_base *base)
 		/*
 		 * Cascade timers:
 		 */
-		if (!index &&
-			(!cascade(base, &base->tv2, INDEX(0))) &&
-				(!cascade(base, &base->tv3, INDEX(1))) &&
-					!cascade(base, &base->tv4, INDEX(2)))
-			cascade(base, &base->tv5, INDEX(3));
+		if (unlikely(!index)) {
+			if (!cascade(base, &base->tv2, INDEX(0))) {
+				if ((!cascade(base, &base->tv3, INDEX(1))) &&
+						!cascade(base, &base->tv4, INDEX(2)))
+					cascade(base, &base->tv5, INDEX(3));
+			}
+
+			/*
+			 * We are just crossing the boundary of tv1 (usually 256 jiffies).
+			 * Since there was no new timers inserted to tv1 and all the old
+			 * timers have been processed, it is guaranteed that tv1 has no
+			 * pending timers, so jiffie can jump to the next boundary at
+			 * most.
+			 */
+			if (base->tv1_cnt == 0) {
+				base->timer_jiffies += min_t(unsigned long,
+						TVR_SIZE - index, jiffies - base->timer_jiffies + 1);
+					continue;
+			}
+
+			base->tv1_cnt = 0;
+		}
+
 		++base->timer_jiffies;
 		list_replace_init(base->tv1.vec + index, &work_list);
 		while (!list_empty(head)) {
@@ -1343,7 +1375,7 @@ SYSCALL_DEFINE0(getppid)
 	int pid;
 
 	rcu_read_lock();
-	pid = task_tgid_vnr(current->real_parent);
+	pid = task_tgid_vnr(rcu_dereference(current->real_parent));
 	rcu_read_unlock();
 
 	return pid;

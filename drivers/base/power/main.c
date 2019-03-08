@@ -57,6 +57,12 @@ struct dpm_drv_wd_data {
 	struct task_struct *tsk;
 };
 
+struct dpm_watchdog {
+	struct device		*dev;
+	struct task_struct	*tsk;
+	struct timer_list	timer;
+};
+
 static int async_error;
 
 /**
@@ -416,6 +422,60 @@ static void dpm_show_time(ktime_t starttime, pm_message_t state, char *info)
 		usecs / USEC_PER_MSEC, usecs % USEC_PER_MSEC);
 }
 
+#ifdef CONFIG_DPM_WATCHDOG
+/**
+ * dpm_watchdog_handler - Driver suspend / resume watchdog handler.
+ *
+ * Called when a driver has timed out suspending or resuming.
+ * There's not much we can do here to recover so panic() to
+ * capture a crash-dump in pstore.
+ */
+static void dpm_watchdog_handler(unsigned long data)
+{
+	struct dpm_watchdog *wd = (void *)data;
+
+	dev_emerg(wd->dev, "**** DPM device timeout ****\n");
+	show_stack(wd->tsk, NULL);
+	panic("%s %s: unrecoverable failure\n",
+		dev_driver_string(wd->dev), dev_name(wd->dev));
+}
+
+/**
+ * dpm_watchdog_set - Enable pm watchdog for given device.
+ * @wd: Watchdog. Must be allocated on the stack.
+ * @dev: Device to handle.
+ */
+static void dpm_watchdog_set(struct dpm_watchdog *wd, struct device *dev)
+{
+	struct timer_list *timer = &wd->timer;
+
+	wd->dev = dev;
+	wd->tsk = get_current();
+
+	init_timer_on_stack(timer);
+	/* use same timeout value for both suspend and resume */
+	timer->expires = jiffies + HZ * CONFIG_DPM_WATCHDOG_TIMEOUT;
+	timer->function = dpm_watchdog_handler;
+	timer->data = (unsigned long)wd;
+	add_timer(timer);
+}
+
+/**
+ * dpm_watchdog_clear - Disable suspend/resume watchdog.
+ * @wd: Watchdog to disable.
+ */
+static void dpm_watchdog_clear(struct dpm_watchdog *wd)
+{
+	struct timer_list *timer = &wd->timer;
+
+	del_timer_sync(timer);
+	destroy_timer_on_stack(timer);
+}
+#else
+#define dpm_watchdog_set(x, y)
+#define dpm_watchdog_clear(x)
+#endif
+
 /*------------------------- Resume routines -------------------------*/
 
 /**
@@ -429,6 +489,7 @@ static void dpm_show_time(ktime_t starttime, pm_message_t state, char *info)
 static int device_resume_noirq(struct device *dev, pm_message_t state)
 {
 	int error = 0;
+	struct dpm_watchdog wd;
 
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
@@ -523,6 +584,7 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 	TRACE_RESUME(0);
 
 	dpm_wait(dev->parent, async);
+	dpm_watchdog_set(&wd, dev);
 	device_lock(dev);
 
 	/*
@@ -918,6 +980,7 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 		return 0;
 	}
 
+	dpm_watchdog_set(&wd, dev);
 	device_lock(dev);
 
 	if (dev->pm_domain) {
@@ -958,6 +1021,7 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	dev->power.is_suspended = !error;
 
 	device_unlock(dev);
+	dpm_watchdog_clear(&wd);
 
 	del_timer_sync(&timer);
 	destroy_timer_on_stack(&timer);
@@ -1026,7 +1090,6 @@ int dpm_suspend(pm_message_t state)
 		mutex_lock(&dpm_list_mtx);
 		if (error) {
 			pm_dev_err(dev, state, "", error);
-			dpm_save_failed_dev(dev_name(dev));
 			dpm_save_failed_dev(dev_name(dev));
 			put_device(dev);
 			break;
@@ -1106,6 +1169,7 @@ static int device_prepare(struct device *dev, pm_message_t state)
 int dpm_prepare(pm_message_t state)
 {
 	int error = 0;
+	struct dpm_watchdog wd;
 
 	might_sleep();
 

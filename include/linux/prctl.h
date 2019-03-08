@@ -103,10 +103,32 @@
 #define PR_MCE_KILL_GET 34
 
 /*
+ * Tune up process memory map specifics.
+ */
+#define PR_SET_MM		35
+# define PR_SET_MM_START_CODE		1
+# define PR_SET_MM_END_CODE		2
+# define PR_SET_MM_START_DATA		3
+# define PR_SET_MM_END_DATA		4
+# define PR_SET_MM_START_STACK		5
+# define PR_SET_MM_START_BRK		6
+# define PR_SET_MM_BRK			7
+
+/*
+ * Set specific pid that is allowed to ptrace the current task.
+ * A value of 0 mean "no process".
+ */
+#define PR_SET_PTRACER 0x59616d61
+# define PR_SET_PTRACER_ANY ((unsigned long)-1)
+
+#define PR_SET_CHILD_SUBREAPER 36
+#define PR_GET_CHILD_SUBREAPER 37
+
+/*
  * Get effective timerslack value for the process.
  * It can be higher than PR_GET_TIMERSLACK.
  */
-#define PR_GET_EFFECTIVE_TIMERSLACK 35
+#define PR_GET_EFFECTIVE_TIMERSLACK 40
 
 /*
  * If no_new_privs is set, then operations that grant new privileges (i.e.
@@ -130,8 +152,7 @@
 #define PR_SET_TIMERSLACK_PID 41
 
 #define PR_SET_VMA		0x53564d41
-# define PR_SET_VMA_ANON_NAME		0
-
+#define PR_SET_VMA_ANON_NAME		0
 
 /*
  * If no_new_privs is set, then operations that grant new privileges (i.e.

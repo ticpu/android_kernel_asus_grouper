@@ -1444,6 +1444,7 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
 	NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, dev->name);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, dev->ieee80211_ptr->iftype);
+	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, dev->dev_addr);
 
 	NLA_PUT_U32(msg, NL80211_ATTR_GENERATION,
 		    rdev->devlist_generation ^
@@ -1802,6 +1803,9 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->ops->get_key)
 		return -EOPNOTSUPP;
 
+	if (!pairwise && mac_addr && !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
+		return -ENOENT;
+
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
@@ -1818,10 +1822,6 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	NLA_PUT_U8(msg, NL80211_ATTR_KEY_IDX, key_idx);
 	if (mac_addr)
 		NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, mac_addr);
-
-	if (pairwise && mac_addr &&
-	    !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
-		return -ENOENT;
 
 	err = rdev->ops->get_key(&rdev->wiphy, dev, key_idx, pairwise,
 				 mac_addr, &cookie, get_key_callback);
@@ -1994,7 +1994,7 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	wdev_lock(dev->ieee80211_ptr);
 	err = nl80211_key_allowed(dev->ieee80211_ptr);
 
-	if (key.type == NL80211_KEYTYPE_PAIRWISE && mac_addr &&
+	if (key.type == NL80211_KEYTYPE_GROUP && mac_addr &&
 	    !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
 		err = -ENOENT;
 
@@ -2117,6 +2117,7 @@ static const struct nla_policy sta_flags_policy[NL80211_STA_FLAG_MAX + 1] = {
 };
 
 static int parse_station_flags(struct genl_info *info,
+			       enum nl80211_iftype iftype,
 			       struct station_parameters *params)
 {
 	struct nlattr *flags[NL80211_STA_FLAG_MAX + 1];
@@ -2150,8 +2151,33 @@ static int parse_station_flags(struct genl_info *info,
 			     nla, sta_flags_policy))
 		return -EINVAL;
 
-	params->sta_flags_mask = (1 << __NL80211_STA_FLAG_AFTER_LAST) - 1;
-	params->sta_flags_mask &= ~1;
+	/*
+	 * Only allow certain flags for interface types so that
+	 * other attributes are silently ignored. Remember that
+	 * this is backward compatibility code with old userspace
+	 * and shouldn't be hit in other cases anyway.
+	 */
+	switch (iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_P2P_GO:
+		params->sta_flags_mask = BIT(NL80211_STA_FLAG_AUTHORIZED) |
+					 BIT(NL80211_STA_FLAG_SHORT_PREAMBLE) |
+					 BIT(NL80211_STA_FLAG_WME) |
+					 BIT(NL80211_STA_FLAG_MFP);
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_STATION:
+		params->sta_flags_mask = BIT(NL80211_STA_FLAG_AUTHORIZED) |
+					 BIT(NL80211_STA_FLAG_TDLS_PEER);
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		params->sta_flags_mask = BIT(NL80211_STA_FLAG_AUTHENTICATED) |
+					 BIT(NL80211_STA_FLAG_MFP) |
+					 BIT(NL80211_STA_FLAG_AUTHORIZED);
+	default:
+		return -EINVAL;
+	}
 
 	for (flag = 1; flag <= NL80211_STA_FLAG_MAX; flag++)
 		if (flags[flag])
@@ -2164,7 +2190,8 @@ static bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info,
 				 int attr)
 {
 	struct nlattr *rate;
-	u16 bitrate;
+	u32 bitrate;
+	u16 bitrate_compat;
 
 	rate = nla_nest_start(msg, attr);
 	if (!rate)
@@ -2172,8 +2199,14 @@ static bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info,
 
 	/* cfg80211_calculate_bitrate will return 0 for mcs >= 32 */
 	bitrate = cfg80211_calculate_bitrate(info);
-	if (bitrate > 0)
-		NLA_PUT_U16(msg, NL80211_RATE_INFO_BITRATE, bitrate);
+	/* report 16-bit bitrate only if we can */
+	bitrate_compat = bitrate < (1UL << 16) ? bitrate : 0;
+	if (bitrate > 0 &&
+	    nla_put_u32(msg, NL80211_RATE_INFO_BITRATE32, bitrate))
+		return false;
+	if (bitrate_compat > 0 &&
+	    nla_put_u16(msg, NL80211_RATE_INFO_BITRATE, bitrate_compat))
+		return false;
 
 	if (info->flags & RATE_INFO_FLAGS_MCS)
 		NLA_PUT_U8(msg, NL80211_RATE_INFO_MCS, info->mcs);
@@ -2434,7 +2467,7 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		params.ht_capa =
 			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
 
-	if (parse_station_flags(info, &params))
+	if (parse_station_flags(info, dev->ieee80211_ptr->iftype, &params))
 		return -EINVAL;
 
 	if (info->attrs[NL80211_ATTR_STA_PLINK_ACTION])
@@ -2462,18 +2495,25 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
-		/* disallow everything but AUTHORIZED flag */
+		/* disallow things sta doesn't support */
 		if (params.plink_action)
 			err = -EINVAL;
 		if (params.vlan)
 			err = -EINVAL;
-		if (params.supported_rates)
+		if (params.supported_rates &&
+		    !(params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)))
 			err = -EINVAL;
 		if (params.ht_capa)
 			err = -EINVAL;
 		if (params.listen_interval >= 0)
 			err = -EINVAL;
-		if (params.sta_flags_mask & ~BIT(NL80211_STA_FLAG_AUTHORIZED))
+		if (params.sta_flags_mask &
+				~(BIT(NL80211_STA_FLAG_AUTHORIZED) |
+				  BIT(NL80211_STA_FLAG_TDLS_PEER)))
+			err = -EINVAL;
+		/* can't change the TDLS bit */
+		if (!(params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
+		    (params.sta_flags_mask & BIT(NL80211_STA_FLAG_TDLS_PEER)))
 			err = -EINVAL;
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
@@ -2553,13 +2593,24 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		params.plink_action =
 		    nla_get_u8(info->attrs[NL80211_ATTR_STA_PLINK_ACTION]);
 
-	if (parse_station_flags(info, &params))
+	if (parse_station_flags(info, dev->ieee80211_ptr->iftype, &params))
 		return -EINVAL;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION)
+		return -EINVAL;
+
+	/*
+	 * Only managed stations can add TDLS peers, and only when the
+	 * wiphy supports external TDLS setup.
+	 */
+	if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_STATION &&
+	    !((params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
+	      (rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_TDLS) &&
+	      (rdev->wiphy.flags & WIPHY_FLAG_TDLS_EXTERNAL_SETUP)))
 		return -EINVAL;
 
 	err = get_vlan(info, rdev, &params.vlan);
@@ -4669,6 +4720,9 @@ int cfg80211_testmode_reply(struct sk_buff *skb)
 	void *hdr = ((void **)skb->cb)[1];
 	struct nlattr *data = ((void **)skb->cb)[2];
 
+	/* clear CB data for netlink core to own from now on */
+	memset(skb->cb, 0, sizeof(skb->cb));
+
 	if (WARN_ON(!rdev->testmode_info)) {
 		kfree_skb(skb);
 		return -EINVAL;
@@ -4691,12 +4745,17 @@ EXPORT_SYMBOL(cfg80211_testmode_alloc_event_skb);
 
 void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
 {
+	struct cfg80211_registered_device *rdev = ((void **)skb->cb)[0];
 	void *hdr = ((void **)skb->cb)[1];
 	struct nlattr *data = ((void **)skb->cb)[2];
 
+	/* clear CB data for netlink core to own from now on */
+	memset(skb->cb, 0, sizeof(skb->cb));
+
 	nla_nest_end(skb, data);
 	genlmsg_end(skb, hdr);
-	genlmsg_multicast(skb, 0, nl80211_testmode_mcgrp.id, gfp);
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), skb, 0,
+				nl80211_testmode_mcgrp.id, gfp);
 }
 EXPORT_SYMBOL(cfg80211_testmode_event);
 #endif
@@ -7314,7 +7373,8 @@ void nl80211_send_mgmt_tx_status(struct cfg80211_registered_device *rdev,
 		return;
 	}
 
-	genlmsg_multicast(msg, 0, nl80211_mlme_mcgrp.id, gfp);
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
 	return;
 
  nla_put_failure:
