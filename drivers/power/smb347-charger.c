@@ -1834,8 +1834,6 @@ static int __devinit smb347_probe(struct i2c_client *client,
 
 	wake_lock_init(&charger_wakelock, WAKE_LOCK_SUSPEND,
 			"charger_configuration");
-        wake_lock_init(&charger_ac_detec_wakelock, WAKE_LOCK_SUSPEND,
-                        "charger_ac_detec_wakelock");
 	INIT_DELAYED_WORK(&charger->curr_limit_work,
 			smb347_set_curr_limit_work_func);
 	INIT_DELAYED_WORK(&charger->test_fail_clear_work,
