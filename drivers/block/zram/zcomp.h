@@ -23,6 +23,7 @@ struct zcomp_strm {
 	void *private;
 	/* used in multi stream backend, protected by backend strm_lock */
 	struct list_head list;
+	struct crypto_comp *tfm;
 };
 
 /* static compression backend */
@@ -31,7 +32,7 @@ struct zcomp_backend {
 			size_t *dst_len, void *private);
 
 	int (*decompress)(const unsigned char *src, size_t src_len,
-			unsigned char *dst);
+			unsigned char *dst, void *private);
 
 	void *(*create)(void);
 	void (*destroy)(void *private);
@@ -61,8 +62,8 @@ void zcomp_strm_release(struct zcomp *comp, struct zcomp_strm *zstrm);
 int zcomp_compress(struct zcomp *comp, struct zcomp_strm *zstrm,
 		const unsigned char *src, size_t *dst_len);
 
-int zcomp_decompress(struct zcomp *comp, const unsigned char *src,
-		size_t src_len, unsigned char *dst);
+int zcomp_decompress(struct zcomp *comp, struct zcomp_strm *zstrm,
+		const unsigned char *src, size_t src_len, unsigned char *dst);
 
 bool zcomp_set_max_streams(struct zcomp *comp, int num_strm);
 #endif /* _ZCOMP_H_ */

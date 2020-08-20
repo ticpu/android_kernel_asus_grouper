@@ -31,7 +31,7 @@ static int lzo_compress(const unsigned char *src, unsigned char *dst,
 }
 
 static int lzo_decompress(const unsigned char *src, size_t src_len,
-		unsigned char *dst)
+		unsigned char *dst, void *private)
 {
 	size_t dst_len = PAGE_SIZE;
 	int ret = lzo1x_decompress_safe(src, src_len, dst, &dst_len);

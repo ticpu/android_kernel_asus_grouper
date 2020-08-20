@@ -31,7 +31,7 @@ static int zcomp_lz4_compress(const unsigned char *src, unsigned char *dst,
 }
 
 static int zcomp_lz4_decompress(const unsigned char *src, size_t src_len,
-		unsigned char *dst)
+		unsigned char *dst, void *private)
 {
 	size_t dst_len = PAGE_SIZE;
 	/* return  : Success if return 0 */

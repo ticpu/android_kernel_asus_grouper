@@ -368,10 +368,12 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
 	struct zram_meta *meta = zram->meta;
 	unsigned long handle;
 	size_t size;
+	struct zcomp_strm *zstrm;
 
 	bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
 	handle = meta->table[index].handle;
 	size = zram_get_obj_size(meta, index);
+	zstrm = zcomp_strm_find(zram->comp);
 
 	if (!handle || zram_test_flag(meta, index, ZRAM_ZERO)) {
 		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
@@ -383,7 +385,7 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
 	if (size == PAGE_SIZE)
 		copy_page(mem, cmem);
 	else
-		ret = zcomp_decompress(zram->comp, cmem, size, mem);
+		ret = zcomp_decompress(zram->comp, zstrm, cmem, size, mem);
 	zs_unmap_object(meta->mem_pool, handle);
 	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
 

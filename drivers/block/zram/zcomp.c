@@ -314,10 +314,11 @@ int zcomp_compress(struct zcomp *comp, struct zcomp_strm *zstrm,
 			zstrm->private);
 }
 
-int zcomp_decompress(struct zcomp *comp, const unsigned char *src,
-		size_t src_len, unsigned char *dst)
+int zcomp_decompress(struct zcomp *comp, struct zcomp_strm *zstrm,
+		const unsigned char *src, size_t src_len, unsigned char *dst)
 {
-	return comp->backend->decompress(src, src_len, dst);
+	return comp->backend->decompress(src, src_len, dst,
+			zstrm->private);
 }
 
 void zcomp_destroy(struct zcomp *comp)
